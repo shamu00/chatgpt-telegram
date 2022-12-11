@@ -27,7 +27,7 @@
 name: Deploy to Azure Web App
 
 env:
-  AZURE_WEBAPP_NAME: chat_gpt_bot
+  AZURE_WEBAPP_NAME: chat-gpt-bot
 
 on:
   push:
