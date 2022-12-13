@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"github.com/shamu00/chatgpt-telegram/ping"
 	"log"
 	"math/rand"
 	"os"
@@ -24,11 +26,14 @@ func mustInit() {
 func main() {
 	mustInit()
 	ctx := src.PrepareContext()
+	ping.StartPingServer()
 	c := make(chan os.Signal, 2)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 	go func() {
 		<-c
 		ctx.Bot.StopReceivingUpdates()
+		log.Println("Exit")
+		ping.StopPingServer(context.Background())
 		os.Exit(0)
 	}()
 
