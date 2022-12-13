@@ -2,6 +2,7 @@ package tgbot
 
 import (
 	"log"
+	"runtime/debug"
 	"strconv"
 	"time"
 
@@ -18,34 +19,39 @@ type Conversation struct {
 }
 
 func HandleBotMessage(ctx src.GlobalContext, updates tgbotapi.UpdatesChannel) {
-	bot := ctx.Bot
-	userConversations := make(map[int64]Conversation)
-
 	for update := range updates {
-		if update.Message == nil {
-			continue
-		}
-		log.Printf("[Input]bot says:%v\n", update.Message.Text)
-		msg := tgbotapi.NewMessage(update.Message.Chat.ID, "linlin says:")
-		msg.ReplyToMessageID = update.Message.MessageID
-		msg.ParseMode = tgbotapi.ModeMarkdown
-
-		//userId := strconv.FormatInt(update.Message.Chat.ID, 10)
-		//if ctx.TelegramId != "" && userId != ctx.TelegramId {
-		//	msg.Text = fmt.Sprintf("You are not authorized to use this bot. userID:%v", userId)
-		//	ctx.Bot.Send(msg)
-		//	continue
-		//}
-		ctx.Bot.Request(tgbotapi.NewChatAction(update.Message.Chat.ID, "typing"))
-		if update.Message.IsCommand() {
-			handleCommand(update.Message.Command(), &msg, userConversations, update.Message.Chat.ID)
-			sendMsg(bot, msg)
-		}
-		// message type
-		handleChat(ctx, update, &msg)
-		sendMsg(bot, msg)
+		go asyncHandleBotMessage(ctx, update)
 	}
+}
 
+func asyncHandleBotMessage(ctx src.GlobalContext, update tgbotapi.Update) {
+	defer func() {
+		if err := recover(); err != nil {
+			log.Printf("[Error]Fatal in async, err:%v, stack:%v", err, string(debug.Stack()))
+		}
+	}()
+	if update.Message == nil {
+		return
+	}
+	log.Printf("[Input]bot says:%v\n", update.Message.Text)
+	msg := tgbotapi.NewMessage(update.Message.Chat.ID, "linlin says:")
+	msg.ReplyToMessageID = update.Message.MessageID
+	msg.ParseMode = tgbotapi.ModeMarkdown
+
+	//userId := strconv.FormatInt(update.Message.Chat.ID, 10)
+	//if ctx.TelegramId != "" && userId != ctx.TelegramId {
+	//	msg.Text = fmt.Sprintf("You are not authorized to use this bot. userID:%v", userId)
+	//	ctx.Bot.Send(msg)
+	//	continue
+	//}
+	ctx.Bot.Request(tgbotapi.NewChatAction(update.Message.Chat.ID, "typing"))
+	if update.Message.IsCommand() {
+		handleCommand(update.Message.Command(), &msg)
+		sendMsg(ctx.Bot, msg)
+	}
+	// message type
+	handleChat(ctx, update, &msg)
+	sendMsg(ctx.Bot, msg)
 }
 
 func handleChat(ctx src.GlobalContext,
@@ -94,18 +100,13 @@ loop:
 	return
 }
 
-func handleCommand(
-	command string,
-	msg *tgbotapi.MessageConfig,
-	userConversations map[int64]Conversation,
-	userId int64) {
+func handleCommand(command string, msg *tgbotapi.MessageConfig) {
 	switch command {
 	case "help":
 		msg.Text = "Send a message to start talking with ChatGPT. You can use /reload at any point to clear the conversation history and start from scratch (don't worry, it won't delete the Telegram messages)."
 	case "start":
 		msg.Text = "Send a message to start talking with ChatGPT. You can use /reload at any point to clear the conversation history and start from scratch (don't worry, it won't delete the Telegram messages)."
 	case "reload":
-		userConversations[userId] = Conversation{}
 		msg.Text = "Started a new conversation. Enjoy!"
 	default:
 

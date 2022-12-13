@@ -2,13 +2,14 @@ package main
 
 import (
 	"context"
-	"github.com/shamu00/chatgpt-telegram/ping"
 	"log"
 	"math/rand"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/shamu00/chatgpt-telegram/ping"
 
 	"github.com/shamu00/chatgpt-telegram/src"
 	"github.com/shamu00/chatgpt-telegram/src/tgbot"
